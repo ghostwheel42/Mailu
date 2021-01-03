@@ -6,7 +6,7 @@ import flask_script
 import flask_migrate
 import flask_babel
 
-from werkzeug.contrib import fixers
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 # Login configuration
@@ -40,7 +40,7 @@ class PrefixMiddleware(object):
         return self.app(environ, start_response)
 
     def init_app(self, app):
-        self.app = fixers.ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+        self.app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
         app.wsgi_app = self
 
 proxy = PrefixMiddleware()
