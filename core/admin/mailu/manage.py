@@ -13,7 +13,7 @@ from flask import current_app as app
 from flask.cli import FlaskGroup, with_appcontext
 
 from mailu import models
-from mailu.schemas import MailuSchema, Logger, RenderJSON
+from mailu.schemas import MailuSchema, Logger, RenderJSON, JSONSchema
 
 
 db = models.db
@@ -403,6 +403,22 @@ def config_export(full=False, secrets=False, color=False, dns=False, output=None
     finally:
         os.umask(old_umask)
 
+@mailu.command()
+@click.option('-c', '--color', is_flag=True, help='Force colorized output.')
+@click.option('-o', '--output-file', 'output', default=sys.stdout, type=click.File(mode='w'),
+              help='Save schema to file.')
+def config_schema(color=False, output=None):
+    """ Output json-schema """
+
+    log = Logger(want_color=color or None, can_color=output.isatty())
+    log.lexer = 'json'
+    log.strip = True
+
+    context = {
+        'import': True,
+    }
+
+    print(log.colorize(JSONSchema().dumps(MailuSchema(context=context))), file=output)
 
 @mailu.command()
 @click.argument('email')
