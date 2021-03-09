@@ -46,11 +46,11 @@ class IdnaDomain(db.TypeDecorator):
     cache_ok = True
     python_type = str
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value, _):
         """ encode unicode domain name to punycode """
         return idna.encode(value.lower()).decode('ascii')
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value, _):
         """ decode punycode domain name to unicode """
         return idna.decode(value)
 
@@ -62,7 +62,7 @@ class IdnaEmail(db.TypeDecorator):
     cache_ok = True
     python_type = str
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value, _):
         """ encode unicode domain part of email address to punycode """
         if not '@' in value:
             raise ValueError('invalid email address (no "@")')
@@ -71,7 +71,7 @@ class IdnaEmail(db.TypeDecorator):
             raise ValueError('email local part must not contain "@"')
         return f'{localpart}@{idna.encode(domain_name).decode("ascii")}'
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value, _):
         """ decode punycode domain part of email to unicode """
         localpart, domain_name = value.rsplit('@', 1)
         return f'{localpart}@{idna.decode(domain_name)}'
@@ -84,7 +84,7 @@ class CommaSeparatedList(db.TypeDecorator):
     cache_ok = True
     python_type = list
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value, _):
         """ join list of items to comma separated string """
         if not isinstance(value, (list, tuple, set)):
             raise TypeError('Must be a list of strings')
@@ -93,7 +93,7 @@ class CommaSeparatedList(db.TypeDecorator):
                 raise ValueError('list item must not contain ","')
         return ','.join(sorted(set(value)))
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value, _):
         """ split comma separated string to list """
         return list(filter(bool, (item.strip() for item in value.split(',')))) if value else []
 
@@ -105,11 +105,11 @@ class JSONEncoded(db.TypeDecorator):
     cache_ok = True
     python_type = str
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value, _):
         """ encode data as json """
         return json.dumps(value) if value else None
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value, _):
         """ decode json to data """
         return json.loads(value) if value else None
 
