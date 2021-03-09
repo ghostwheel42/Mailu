@@ -12,11 +12,12 @@ import yaml
 
 import sqlalchemy
 
-from marshmallow import pre_load, post_load, post_dump, fields, Schema
+from marshmallow import pre_load, post_load, post_dump, fields, validate, Schema
 from marshmallow.utils import ensure_text_type
 from marshmallow.exceptions import ValidationError
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchemaOpts
-from marshmallow_sqlalchemy.fields import RelatedList
+from marshmallow_sqlalchemy.fields import Related, RelatedList
+import marshmallow_jsonschema as mjs
 
 from flask_marshmallow import Marshmallow
 
@@ -332,6 +333,68 @@ class Logger:
         return res
 
 
+### json schema ###
+
+class JSONSchema(mjs.JSONSchema):
+    """ Modified JSONSchema to work with marschmallow.sqlalchemy """
+
+    # TODO: needs context=context in marshmallow_jsonschema/base.py:284
+    def __init__(self, *args, **kwargs):
+        mjs.base.FIELD_VALIDATORS[validate.Length] = JSONSchema._handle_length
+        super().__init__(*args, **kwargs)
+
+    def _get_python_type(self, field):
+        """ Get python type based on field subclass """
+
+        try:
+            return super()._get_python_type(field)
+
+        except mjs.UnsupportedValueError:
+
+            # fields.Related is another object => mapped via string
+            # (alternatives, manager_of)
+            if isinstance(field, Related):
+                return str
+
+            # when validate contains OneOf: enum => string
+            # (protocols)
+            if any(isinstance(v, validate.OneOf) for v in field.validate or []):
+                return str
+
+            raise
+
+    def _from_python_type(self, obj, field, pytype):
+        """ Fix json_schema """
+
+        json_schema = super()._from_python_type(obj, field, pytype)
+
+        # always remove model metadata
+        if 'model' in json_schema:
+            del json_schema['model']
+
+        # convert integer type: number:integer => integer
+        if json_schema.get('format') == 'integer':
+            json_schema['type'] = json_schema.pop('format')
+
+        # CommaSeparatedListField (destinations, forward_destination)
+        if isinstance(field, (CommaSeparatedListField, fields.Raw)):
+            json_schema['anyOf'] = [
+                {'type': json_schema.pop('type')}, # TODO: length, etc.
+                {'type': 'array', 'items': {'title': 'email', 'type': 'string'}}
+            ]
+
+        return json_schema
+
+    @staticmethod
+    def _handle_length(schema, field, validator, parent_schema):
+        """ Ignore length validator for enums """
+
+        if isinstance(validator, validate.Length) and \
+           any(isinstance(v, validate.OneOf) for v in field.validate):
+            return schema
+
+        return mjs.validation.handle_length(schema, field, validator, parent_schema)
+
 ### marshmallow render modules ###
 
 # hidden attributes
@@ -472,6 +535,10 @@ fields.DateTime.DEFAULT_FORMAT = 'rfc3339'
 class LazyStringField(fields.String):
     """ Field that serializes a "false" value to the empty string
     """
+
+    def __init__(self, *args, **kwargs):
+        kwargs['allow_none'] = True
+        super().__init__(*args, **kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):
         """ serialize None to the empty string
@@ -1166,7 +1233,6 @@ class FetchSchema(BaseSchema):
         hide_by_context = {
             ('secrets',): {'password'},
         }
-
 
 @mapped
 class UserSchema(BaseSchema):
