@@ -1,8 +1,12 @@
+""" Mailu admin app
+"""
+
 import flask
 import flask_bootstrap
 
 from mailu import utils, debug, models, manage, configuration
 
+import hmac
 
 def create_app_from_config(config):
     """ Create a new application based on the given configuration
@@ -17,12 +21,15 @@ def create_app_from_config(config):
     # Initialize application extensions
     config.init_app(app)
     models.db.init_app(app)
+    utils.session.init_app(app)
     utils.limiter.init_app(app)
     utils.babel.init_app(app)
     utils.login.init_app(app)
     utils.login.user_loader(models.User.get)
     utils.proxy.init_app(app)
     utils.migrate.init_app(app, models.db)
+
+    app.temp_token_key = hmac.new(bytearray(app.secret_key, 'utf-8'), bytearray('WEBMAIL_TEMP_TOKEN_KEY', 'utf-8'), 'sha256').digest()
 
     # Initialize debugging tools
     if app.config.get("DEBUG"):
@@ -49,8 +56,7 @@ def create_app_from_config(config):
 
 
 def create_app():
-    """ Create a new application based on the config module 
+    """ Create a new application based on the config module
     """
     config = configuration.ConfigManager()
     return create_app_from_config(config)
-
