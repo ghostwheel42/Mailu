@@ -336,7 +336,7 @@ class Logger:
 ### json schema ###
 
 class JSONSchema(mjs.JSONSchema):
-    """ Modified JSONSchema to work with marschmallow.sqlalchemy """
+    """ Modified JSONSchema to work with marshmallow.sqlalchemy """
 
     # TODO: needs context=context in marshmallow_jsonschema/base.py:284
     def __init__(self, *args, **kwargs):
