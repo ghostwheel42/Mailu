@@ -28,7 +28,7 @@ RUN set -euxo pipefail \
   ; mkdir -p /run/nginx /conf
 
 # roundcube
-ENV ROUNDCUBE_URL https://github.com/roundcube/roundcubemail/releases/download/1.6.15/roundcubemail-1.6.15-complete.tar.gz
+ENV ROUNDCUBE_URL https://github.com/roundcube/roundcubemail/releases/download/1.6.16/roundcubemail-1.6.16-complete.tar.gz
 ENV CARDDAV_URL https://github.com/mstilkerich/rcmcarddav/releases/download/v5.1.2/carddav-v5.1.2.tar.gz
 
 RUN set -euxo pipefail \
